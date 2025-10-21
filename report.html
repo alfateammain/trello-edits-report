@@ -192,8 +192,8 @@
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки
-        const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
+        // Получаем все карточки (только базовые поля)
+        const allCards = await t.cards('all');
         
         // Получаем кастомные поля доски
         const board = await t.board('all');
@@ -254,25 +254,21 @@
             console.log('Карточка:', card.name, 'Правки:', pravkiValue, 'Тип:', typeof pravkiValue);
 
             if (pravkiValue > 0) {
-              // Получаем участников карточки
-              const cardMembers = card.idMembers || card.members || [];
-              console.log('Карточка:', card.name, 'ID участников:', card.idMembers, 'Members:', card.members);
-              
+              // Получаем участников через card() для конкретной карточки
               let memberIds = [];
               let memberNames = [];
               
-              // Если есть idMembers - используем их
-              if (card.idMembers && card.idMembers.length > 0) {
-                memberIds = card.idMembers;
-                memberNames = memberIds.map(id => {
-                  const member = membersMap[id];
-                  return member ? member.fullName : 'Неизвестно';
-                });
-              }
-              // Если есть members объект - используем его
-              else if (card.members && card.members.length > 0) {
-                memberIds = card.members.map(m => m.id);
-                memberNames = card.members.map(m => m.fullName || m.username || 'Неизвестно');
+              try {
+                // Пытаемся получить участников карточки
+                const cardData = await t.card(card.id, 'members');
+                console.log('Карточка:', card.name, 'Данные:', cardData);
+                
+                if (cardData.members && cardData.members.length > 0) {
+                  memberNames = cardData.members.map(m => m.fullName || m.username || 'Неизвестно');
+                  memberIds = cardData.members.map(m => m.id);
+                }
+              } catch (e) {
+                console.log('Не удалось получить участников для', card.name, e);
               }
               
               console.log('  Имена участников:', memberNames);
@@ -280,7 +276,7 @@
               reportData.push({
                 name: card.name,
                 pravki: Number(pravkiValue),
-                url: card.url,
+                url: card.url || card.shortUrl,
                 members: memberIds,
                 memberNames: memberNames
               });
