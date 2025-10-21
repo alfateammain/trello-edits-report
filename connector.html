@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <script>
+    window.TrelloPowerUp.initialize({
+      'board-buttons': function(t, options) {
+        return [{
+          icon: {
+            dark: 'https://cdn-icons-png.flaticon.com/512/888/888879.png',
+            light: 'https://cdn-icons-png.flaticon.com/512/888/888879.png'
+          },
+          text: 'Отчет по правкам',
+          callback: function(t) {
+            return t.modal({
+              title: 'Отчет по правкам',
+              url: './report.html',
+              fullscreen: false,
+              height: 600
+            });
+          }
+        }];
+      }
+    });
+  </script>
+</body>
+</html>
