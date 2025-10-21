@@ -183,9 +183,12 @@
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки
-        const allCards = await t.cards();
+        // Получаем все карточки С УЧАСТНИКАМИ
+        const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
         console.log('Всего карточек:', allCards.length);
+        if (allCards.length > 0) {
+          console.log('Пример карточки с участниками:', allCards[0]);
+        }
         
         // Получаем кастомные поля доски
         const board = await t.board('customFields');
@@ -230,20 +233,10 @@
             }
 
             if (pravkiValue > 0) {
-              // Получаем участников для этой конкретной карточки
-              let memberNames = [];
+              // Участники уже есть в карточке!
+              const memberNames = (card.members || []).map(m => m.fullName || m.username || 'Неизвестно');
               
-              try {
-                // Используем t.card() для получения участников конкретной карточки
-                const cardContext = await t.card(card.id, 'members');
-                console.log('Карточка:', card.name, 'Участники:', cardContext.members);
-                
-                if (cardContext.members && cardContext.members.length > 0) {
-                  memberNames = cardContext.members.map(m => m.fullName || m.username || 'Неизвестно');
-                }
-              } catch (e) {
-                console.log('Не удалось получить участников для', card.name, e);
-              }
+              console.log('Карточка:', card.name, 'Участники:', memberNames);
               
               reportData.push({
                 name: card.name,
