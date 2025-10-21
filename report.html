@@ -192,8 +192,8 @@
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки
-        const allCards = await t.cards('all');
+        // Получаем все карточки С УЧАСТНИКАМИ
+        const allCards = await t.cards('id', 'name', 'shortUrl', 'url', 'dateLastActivity', 'customFieldItems', 'idMembers', 'members');
         
         // Получаем кастомные поля доски
         const board = await t.board('all');
