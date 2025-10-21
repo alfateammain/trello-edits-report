@@ -256,10 +256,15 @@
             if (pravkiValue > 0) {
               // Получаем участников карточки
               const cardMembers = card.idMembers || [];
+              console.log('Карточка:', card.name, 'ID участников:', cardMembers);
+              
               const memberNames = cardMembers.map(id => {
                 const member = membersMap[id];
+                console.log('  - Участник ID:', id, 'Найден:', member);
                 return member ? member.fullName : 'Неизвестно';
               });
+              
+              console.log('  Имена участников:', memberNames);
               
               reportData.push({
                 name: card.name,
