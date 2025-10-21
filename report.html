@@ -1,12 +1,4 @@
-.group-header {
-      background: #f4f5f7;
-      font-weight: bold;
-      color: #172b4d;
-    }
-    .group-header td {
-      padding: 15px 12px;
-      font-size: 15px;
-    }<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -46,13 +38,15 @@
       margin-bottom: 5px;
       font-weight: 600;
     }
-    input[type="date"] {
+    input[type="date"], select {
       padding: 8px;
       border: 1px solid #dfe1e6;
       border-radius: 3px;
       font-size: 14px;
       color: #172b4d;
       background: white;
+      width: 100%;
+      box-sizing: border-box;
     }
     #report {
       background: white;
@@ -129,6 +123,15 @@
       padding: 40px;
       color: #666;
     }
+    .group-header {
+      background: #f4f5f7;
+      font-weight: bold;
+      color: #172b4d;
+    }
+    .group-header td {
+      padding: 15px 12px;
+      font-size: 15px;
+    }
   </style>
 </head>
 <body>
@@ -162,7 +165,6 @@
   <script>
     const t = window.TrelloPowerUp.iframe();
 
-    // Устанавливаем даты по умолчанию (последние 30 дней)
     window.onload = function() {
       const today = new Date();
       const monthAgo = new Date();
@@ -179,7 +181,6 @@
       reportDiv.innerHTML = '<div class="loading">Формирование отчета...</div>';
 
       try {
-        // Получаем фильтры
         const dateFrom = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
@@ -188,9 +189,6 @@
         const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
         
         console.log('Получено карточек:', allCards.length);
-        if (allCards.length > 0) {
-          console.log('Пример карточки с участниками:', allCards[0]);
-        }
         
         // Получаем кастомные поля доски
         const board = await t.board('customFields');
@@ -227,7 +225,6 @@
           if (customFieldItem) {
             let pravkiValue = 0;
             
-            // Обрабатываем разные типы полей
             if (customFieldItem.value) {
               if (customFieldItem.value.number !== undefined) {
                 pravkiValue = Number(customFieldItem.value.number);
