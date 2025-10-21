@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+.group-header {
+      background: #f4f5f7;
+      font-weight: bold;
+      color: #172b4d;
+    }
+    .group-header td {
+      padding: 15px 12px;
+      font-size: 15px;
+    }<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -38,7 +46,7 @@
       margin-bottom: 5px;
       font-weight: 600;
     }
-    input[type="date"], select {
+    input[type="date"] {
       padding: 8px;
       border: 1px solid #dfe1e6;
       border-radius: 3px;
@@ -121,22 +129,6 @@
       padding: 40px;
       color: #666;
     }
-    .group-header {
-      background: #f4f5f7;
-      font-weight: bold;
-      color: #172b4d;
-    }
-    .group-header td {
-      padding: 15px 12px;
-      font-size: 15px;
-    }
-    .member-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
   </style>
 </head>
 <body>
@@ -156,7 +148,7 @@
         <label>Группировка:</label>
         <select id="groupBy">
           <option value="none">Без группировки</option>
-          <option value="member">По исполнителю</option>
+          <option value="member">По участникам</option>
         </select>
       </div>
       <button onclick="generateReport()">🔄 Обновить</button>
@@ -192,11 +184,16 @@
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки
-        const allCards = await t.cards('all');
+        // Получаем карточки с участниками
+        const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
+        
+        console.log('Получено карточек:', allCards.length);
+        if (allCards.length > 0) {
+          console.log('Пример карточки с участниками:', allCards[0]);
+        }
         
         // Получаем кастомные поля доски
-        const board = await t.board('all');
+        const board = await t.board('customFields');
         const customFields = board.customFields || [];
         
         // Находим поле "Правки"
@@ -213,24 +210,12 @@
           return;
         }
 
-        // Получаем участников доски
-        const boardData = await t.board('members');
-        const membersMap = {};
-        if (boardData.members) {
-          boardData.members.forEach(member => {
-            membersMap[member.id] = member;
-          });
-        }
-
         // Собираем данные
         const reportData = [];
         let totalPravki = 0;
-        
-        console.log('Всего карточек:', allCards.length);
-        console.log('Участники доски:', membersMap);
 
         for (const card of allCards) {
-          // Фильтр по дате создания
+          // Фильтр по дате
           const cardDate = new Date(card.dateLastActivity);
           if (dateFrom && cardDate < dateFrom) continue;
           if (dateTo && cardDate > dateTo) continue;
@@ -250,27 +235,15 @@
                 pravkiValue = Number(customFieldItem.value.text);
               }
             }
-            
-            console.log('Карточка:', card.name, 'Правки:', pravkiValue, 'Тип:', typeof pravkiValue);
 
             if (pravkiValue > 0) {
-              // Получаем участников карточки
-              const cardMembers = card.idMembers || [];
-              console.log('Карточка:', card.name, 'ID участников:', cardMembers);
-              
-              const memberNames = cardMembers.map(id => {
-                const member = membersMap[id];
-                console.log('  - Участник ID:', id, 'Найден:', member);
-                return member ? member.fullName : 'Неизвестно';
-              });
-              
-              console.log('  Имена участников:', memberNames);
+              // Получаем участников из карточки
+              const memberNames = (card.members || []).map(m => m.fullName || m.username || 'Неизвестно');
               
               reportData.push({
                 name: card.name,
                 pravki: Number(pravkiValue),
-                url: card.shortUrl || card.url,
-                members: cardMembers,
+                url: card.url,
                 memberNames: memberNames
               });
               totalPravki += Number(pravkiValue);
@@ -303,31 +276,20 @@
 
         if (reportData.length > 0) {
           if (groupBy === 'member') {
-            // Группировка по исполнителю
-            console.log('Группировка по участникам');
-            console.log('membersMap:', membersMap);
-            console.log('reportData:', reportData);
-            
+            // Группировка по участникам
             const grouped = {};
             
             reportData.forEach(item => {
-              console.log('Обработка карточки:', item.name, 'Участники:', item.members, item.memberNames);
-              
-              if (item.members.length === 0) {
-                if (!grouped['Без исполнителя']) grouped['Без исполнителя'] = [];
-                grouped['Без исполнителя'].push(item);
+              if (item.memberNames.length === 0) {
+                if (!grouped['Без участников']) grouped['Без участников'] = [];
+                grouped['Без участников'].push(item);
               } else {
-                item.members.forEach((memberId) => {
-                  const member = membersMap[memberId];
-                  const memberName = member ? member.fullName : 'Неизвестно';
-                  console.log('Участник:', memberName, 'ID:', memberId);
+                item.memberNames.forEach(memberName => {
                   if (!grouped[memberName]) grouped[memberName] = [];
                   grouped[memberName].push(item);
                 });
               }
             });
-            
-            console.log('Сгруппировано:', grouped);
 
             html += '<table><thead><tr><th>Карточка</th><th>Правок</th></tr></thead><tbody>';
             
@@ -338,7 +300,7 @@
               html += `
                 <tr class="group-header">
                   <td colspan="2">
-                    ${memberName} (${items.length} карточек, ${memberTotal} правок)
+                    👤 ${memberName} (${items.length} карточек, ${memberTotal} правок)
                   </td>
                 </tr>
               `;
@@ -363,7 +325,7 @@
                   <tr>
                     <th>Карточка</th>
                     <th>Правок</th>
-                    <th>Исполнители</th>
+                    <th>Участники</th>
                   </tr>
                 </thead>
                 <tbody>
