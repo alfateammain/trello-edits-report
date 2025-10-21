@@ -225,6 +225,9 @@
         // Собираем данные
         const reportData = [];
         let totalPravki = 0;
+        
+        console.log('Всего карточек:', allCards.length);
+        console.log('Участники доски:', membersMap);
 
         for (const card of allCards) {
           // Фильтр по дате создания
@@ -242,11 +245,13 @@
             // Обрабатываем разные типы полей
             if (customFieldItem.value) {
               if (customFieldItem.value.number !== undefined) {
-                pravkiValue = customFieldItem.value.number;
+                pravkiValue = Number(customFieldItem.value.number);
               } else if (customFieldItem.value.text !== undefined) {
-                pravkiValue = Number(customFieldItem.value.text) || 0;
+                pravkiValue = Number(customFieldItem.value.text);
               }
             }
+            
+            console.log('Карточка:', card.name, 'Правки:', pravkiValue, 'Тип:', typeof pravkiValue);
 
             if (pravkiValue > 0) {
               // Получаем участников карточки
@@ -258,12 +263,12 @@
               
               reportData.push({
                 name: card.name,
-                pravki: pravkiValue,
+                pravki: Number(pravkiValue),
                 url: card.shortUrl || card.url,
                 members: cardMembers,
                 memberNames: memberNames
               });
-              totalPravki += pravkiValue;
+              totalPravki += Number(pravkiValue);
             }
           }
         }
