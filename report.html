@@ -272,7 +272,7 @@
         reportData.sort((a, b) => b.pravki - a.pravki);
 
         // Формируем HTML отчет
-        const avgPravki = reportData.length > 0 ? (totalPravki / reportData.length).toFixed(2) : 0;
+        const avgPravki = reportData.length > 0 ? Math.round(totalPravki / reportData.length) : 0;
         
         let html = `
           <div class="stats">
@@ -294,9 +294,15 @@
         if (reportData.length > 0) {
           if (groupBy === 'member') {
             // Группировка по исполнителю
+            console.log('Группировка по участникам');
+            console.log('membersMap:', membersMap);
+            console.log('reportData:', reportData);
+            
             const grouped = {};
             
             reportData.forEach(item => {
+              console.log('Обработка карточки:', item.name, 'Участники:', item.members, item.memberNames);
+              
               if (item.members.length === 0) {
                 if (!grouped['Без исполнителя']) grouped['Без исполнителя'] = [];
                 grouped['Без исполнителя'].push(item);
@@ -304,11 +310,14 @@
                 item.members.forEach((memberId) => {
                   const member = membersMap[memberId];
                   const memberName = member ? member.fullName : 'Неизвестно';
+                  console.log('Участник:', memberName, 'ID:', memberId);
                   if (!grouped[memberName]) grouped[memberName] = [];
                   grouped[memberName].push(item);
                 });
               }
             });
+            
+            console.log('Сгруппировано:', grouped);
 
             html += '<table><thead><tr><th>Карточка</th><th>Правок</th></tr></thead><tbody>';
             
