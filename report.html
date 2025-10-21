@@ -163,7 +163,6 @@
   <script>
     const t = window.TrelloPowerUp.iframe();
 
-    // Устанавливаем даты по умолчанию
     window.onload = function() {
       const today = new Date();
       const monthAgo = new Date();
@@ -183,18 +182,6 @@
         const dateFrom = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
-
-        // Получаем участников доски через t.get()
-        const boardMembers = await t.get('board', 'members');
-        console.log('Участники доски:', boardMembers);
-        
-        // Создаем карту участников
-        const membersMap = {};
-        if (boardMembers && Array.isArray(boardMembers)) {
-          boardMembers.forEach(member => {
-            membersMap[member.id] = member;
-          });
-        }
 
         // Получаем все карточки
         const allCards = await t.cards();
@@ -217,7 +204,7 @@
           return;
         }
 
-        // Собираем данные с участниками для каждой карточки
+        // Собираем данные
         const reportData = [];
         let totalPravki = 0;
 
@@ -243,33 +230,25 @@
             }
 
             if (pravkiValue > 0) {
-              // Получаем участников конкретной карточки
-              let cardMembers = [];
+              // Получаем участников для этой конкретной карточки
               let memberNames = [];
               
               try {
-                // Используем t.get() для получения участников карточки
-                const context = await t.getContext();
+                // Используем t.card() для получения участников конкретной карточки
+                const cardContext = await t.card(card.id, 'members');
+                console.log('Карточка:', card.name, 'Участники:', cardContext.members);
                 
-                // Пробуем получить через API карточки
-                if (card.idMembers && card.idMembers.length > 0) {
-                  memberNames = card.idMembers.map(id => {
-                    const member = membersMap[id];
-                    return member ? member.fullName : 'Неизвестно';
-                  });
-                  cardMembers = card.idMembers;
+                if (cardContext.members && cardContext.members.length > 0) {
+                  memberNames = cardContext.members.map(m => m.fullName || m.username || 'Неизвестно');
                 }
-                
-                console.log('Карточка:', card.name, 'Участники:', memberNames);
               } catch (e) {
-                console.log('Ошибка получения участников:', e);
+                console.log('Не удалось получить участников для', card.name, e);
               }
               
               reportData.push({
                 name: card.name,
                 pravki: Number(pravkiValue),
                 url: card.url,
-                members: cardMembers,
                 memberNames: memberNames
               });
               totalPravki += Number(pravkiValue);
