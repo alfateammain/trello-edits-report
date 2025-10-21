@@ -130,6 +130,13 @@
       padding: 15px 12px;
       font-size: 15px;
     }
+    .member-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
   </style>
 </head>
 <body>
@@ -149,7 +156,7 @@
         <label>Группировка:</label>
         <select id="groupBy">
           <option value="none">Без группировки</option>
-          <option value="member">По участникам</option>
+          <option value="member">По исполнителю</option>
         </select>
       </div>
       <button onclick="generateReport()">🔄 Обновить</button>
@@ -163,6 +170,7 @@
   <script>
     const t = window.TrelloPowerUp.iframe();
 
+    // Устанавливаем даты по умолчанию (последние 30 дней)
     window.onload = function() {
       const today = new Date();
       const monthAgo = new Date();
@@ -179,19 +187,16 @@
       reportDiv.innerHTML = '<div class="loading">Формирование отчета...</div>';
 
       try {
+        // Получаем фильтры
         const dateFrom = document.getElementById('dateFrom').value ? new Date(document.getElementById('dateFrom').value) : null;
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки С УЧАСТНИКАМИ
-        const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
-        console.log('Всего карточек:', allCards.length);
-        if (allCards.length > 0) {
-          console.log('Пример карточки с участниками:', allCards[0]);
-        }
+        // Получаем все карточки
+        const allCards = await t.cards('all');
         
         // Получаем кастомные поля доски
-        const board = await t.board('customFields');
+        const board = await t.board('all');
         const customFields = board.customFields || [];
         
         // Находим поле "Правки"
@@ -203,16 +208,29 @@
         if (!pravkiField) {
           reportDiv.innerHTML = `
             <p style="color: red;">❌ Кастомное поле "Правки" не найдено на доске</p>
+            <p style="color: #666; font-size: 14px;">Убедитесь, что на доске есть кастомное поле с названием "Правки"</p>
           `;
           return;
+        }
+
+        // Получаем участников доски
+        const boardData = await t.board('members');
+        const membersMap = {};
+        if (boardData.members) {
+          boardData.members.forEach(member => {
+            membersMap[member.id] = member;
+          });
         }
 
         // Собираем данные
         const reportData = [];
         let totalPravki = 0;
+        
+        console.log('Всего карточек:', allCards.length);
+        console.log('Участники доски:', membersMap);
 
         for (const card of allCards) {
-          // Фильтр по дате
+          // Фильтр по дате создания
           const cardDate = new Date(card.dateLastActivity);
           if (dateFrom && cardDate < dateFrom) continue;
           if (dateTo && cardDate > dateTo) continue;
@@ -224,6 +242,7 @@
           if (customFieldItem) {
             let pravkiValue = 0;
             
+            // Обрабатываем разные типы полей
             if (customFieldItem.value) {
               if (customFieldItem.value.number !== undefined) {
                 pravkiValue = Number(customFieldItem.value.number);
@@ -231,17 +250,27 @@
                 pravkiValue = Number(customFieldItem.value.text);
               }
             }
+            
+            console.log('Карточка:', card.name, 'Правки:', pravkiValue, 'Тип:', typeof pravkiValue);
 
             if (pravkiValue > 0) {
-              // Участники уже есть в карточке!
-              const memberNames = (card.members || []).map(m => m.fullName || m.username || 'Неизвестно');
+              // Получаем участников карточки
+              const cardMembers = card.idMembers || [];
+              console.log('Карточка:', card.name, 'ID участников:', cardMembers);
               
-              console.log('Карточка:', card.name, 'Участники:', memberNames);
+              const memberNames = cardMembers.map(id => {
+                const member = membersMap[id];
+                console.log('  - Участник ID:', id, 'Найден:', member);
+                return member ? member.fullName : 'Неизвестно';
+              });
+              
+              console.log('  Имена участников:', memberNames);
               
               reportData.push({
                 name: card.name,
                 pravki: Number(pravkiValue),
-                url: card.url,
+                url: card.shortUrl || card.url,
+                members: cardMembers,
                 memberNames: memberNames
               });
               totalPravki += Number(pravkiValue);
@@ -274,20 +303,31 @@
 
         if (reportData.length > 0) {
           if (groupBy === 'member') {
-            // Группировка по участникам
+            // Группировка по исполнителю
+            console.log('Группировка по участникам');
+            console.log('membersMap:', membersMap);
+            console.log('reportData:', reportData);
+            
             const grouped = {};
             
             reportData.forEach(item => {
-              if (item.memberNames.length === 0) {
-                if (!grouped['Без участников']) grouped['Без участников'] = [];
-                grouped['Без участников'].push(item);
+              console.log('Обработка карточки:', item.name, 'Участники:', item.members, item.memberNames);
+              
+              if (item.members.length === 0) {
+                if (!grouped['Без исполнителя']) grouped['Без исполнителя'] = [];
+                grouped['Без исполнителя'].push(item);
               } else {
-                item.memberNames.forEach(memberName => {
+                item.members.forEach((memberId) => {
+                  const member = membersMap[memberId];
+                  const memberName = member ? member.fullName : 'Неизвестно';
+                  console.log('Участник:', memberName, 'ID:', memberId);
                   if (!grouped[memberName]) grouped[memberName] = [];
                   grouped[memberName].push(item);
                 });
               }
             });
+            
+            console.log('Сгруппировано:', grouped);
 
             html += '<table><thead><tr><th>Карточка</th><th>Правок</th></tr></thead><tbody>';
             
@@ -298,7 +338,7 @@
               html += `
                 <tr class="group-header">
                   <td colspan="2">
-                    👤 ${memberName} (${items.length} карточек, ${memberTotal} правок)
+                    ${memberName} (${items.length} карточек, ${memberTotal} правок)
                   </td>
                 </tr>
               `;
@@ -323,7 +363,7 @@
                   <tr>
                     <th>Карточка</th>
                     <th>Правок</th>
-                    <th>Участники</th>
+                    <th>Исполнители</th>
                   </tr>
                 </thead>
                 <tbody>
