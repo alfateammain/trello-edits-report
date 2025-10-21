@@ -9,6 +9,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
       padding: 20px;
       background: #f4f5f7;
+      margin: 0;
     }
     h2 {
       color: #172b4d;
@@ -90,30 +91,55 @@
   <script>
     const t = window.TrelloPowerUp.iframe();
 
+    // Инициализация Power-Up
+    window.TrelloPowerUp.initialize({
+      'board-buttons': function(t, options) {
+        return [{
+          icon: {
+            dark: 'https://cdn-icons-png.flaticon.com/512/3135/3135706.png',
+            light: 'https://cdn-icons-png.flaticon.com/512/3135/3135706.png'
+          },
+          text: 'Отчет по правкам',
+          callback: function(t) {
+            return t.modal({
+              title: 'Отчет по правкам',
+              url: './index.html',
+              fullscreen: false,
+              height: 600
+            });
+          }
+        }];
+      }
+    });
+
     async function generateReport() {
       const reportDiv = document.getElementById('report');
       reportDiv.innerHTML = '<div class="loading">Формирование отчета...</div>';
 
       try {
-        // Получаем данные через Trello API (без API ключа!)
-        const board = await t.board('id', 'customFields');
-        const cards = await t.cards('id', 'name', 'shortUrl', 'idList', 'customFieldItems');
-        const lists = await t.lists('id', 'name');
+        // Получаем все карточки
+        const allCards = await t.cards('all');
         
         // Получаем кастомные поля доски
+        const board = await t.board('all');
         const customFields = board.customFields || [];
         
         // Находим поле "Правки"
         const pravkiField = customFields.find(field => 
-          field.name.toLowerCase().includes('правки')
+          field.name.toLowerCase().includes('правки') ||
+          field.name.toLowerCase().includes('pravki')
         );
 
         if (!pravkiField) {
-          reportDiv.innerHTML = '<p style="color: red;">❌ Кастомное поле "Правки" не найдено на доске</p>';
+          reportDiv.innerHTML = `
+            <p style="color: red;">❌ Кастомное поле "Правки" не найдено на доске</p>
+            <p style="color: #666; font-size: 14px;">Убедитесь, что на доске есть кастомное поле с названием "Правки"</p>
+          `;
           return;
         }
 
-        // Создаем карту списков
+        // Получаем списки
+        const lists = await t.lists('all');
         const listsMap = {};
         lists.forEach(list => listsMap[list.id] = list.name);
 
@@ -121,27 +147,34 @@
         const reportData = [];
         let totalPravki = 0;
 
-        cards.forEach(card => {
+        for (const card of allCards) {
           const customFieldItem = card.customFieldItems?.find(
             item => item.idCustomField === pravkiField.id
           );
 
           if (customFieldItem) {
-            const pravkiValue = customFieldItem.value?.number || 
-                               Number(customFieldItem.value?.text) || 
-                               0;
+            let pravkiValue = 0;
+            
+            // Обрабатываем разные типы полей
+            if (customFieldItem.value) {
+              if (customFieldItem.value.number !== undefined) {
+                pravkiValue = customFieldItem.value.number;
+              } else if (customFieldItem.value.text !== undefined) {
+                pravkiValue = Number(customFieldItem.value.text) || 0;
+              }
+            }
 
             if (pravkiValue > 0) {
               reportData.push({
                 name: card.name,
                 pravki: pravkiValue,
-                url: card.shortUrl,
+                url: card.shortUrl || card.url,
                 list: listsMap[card.idList] || 'Неизвестно'
               });
               totalPravki += pravkiValue;
             }
           }
-        });
+        }
 
         // Сортируем по убыванию правок
         reportData.sort((a, b) => b.pravki - a.pravki);
@@ -164,45 +197,56 @@
               <div class="stat-value">${avgPravki}</div>
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Карточка</th>
-                <th>Правок</th>
-                <th>Список</th>
-                <th>Ссылка</th>
-              </tr>
-            </thead>
-            <tbody>
         `;
 
-        reportData.forEach(item => {
+        if (reportData.length > 0) {
           html += `
-            <tr>
-              <td><strong>${item.name}</strong></td>
-              <td><span style="background: #ff6b6b; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold;">${item.pravki}</span></td>
-              <td>${item.list}</td>
-              <td><a href="${item.url}" target="_blank" style="color: #0079bf;">Открыть</a></td>
-            </tr>
+            <table>
+              <thead>
+                <tr>
+                  <th>Карточка</th>
+                  <th>Правок</th>
+                  <th>Список</th>
+                  <th>Ссылка</th>
+                </tr>
+              </thead>
+              <tbody>
           `;
-        });
 
-        html += '</tbody></table>';
-        
-        if (reportData.length === 0) {
-          html = '<p style="text-align: center; padding: 40px; color: #999;">Карточек с правками не найдено</p>';
+          reportData.forEach(item => {
+            html += `
+              <tr>
+                <td><strong>${item.name}</strong></td>
+                <td><span style="background: #ff6b6b; color: white; padding: 4px 10px; border-radius: 12px; font-weight: bold;">${item.pravki}</span></td>
+                <td>${item.list}</td>
+                <td><a href="${item.url}" target="_blank" style="color: #0079bf;">Открыть</a></td>
+              </tr>
+            `;
+          });
+
+          html += '</tbody></table>';
+        } else {
+          html += '<p style="text-align: center; padding: 40px; color: #999;">Карточек с правками не найдено</p>';
         }
 
         reportDiv.innerHTML = html;
 
       } catch (error) {
-        reportDiv.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+        reportDiv.innerHTML = `
+          <p style="color: red;">Ошибка: ${error.message}</p>
+          <p style="color: #666; font-size: 14px;">Детали ошибки в консоли браузера (F12)</p>
+        `;
         console.error('Error:', error);
       }
     }
 
     // Автозагрузка при открытии
-    generateReport();
+    if (window.location === window.parent.location) {
+      // Если открыто не в iframe (для тестирования)
+      document.body.innerHTML = '<p style="padding: 20px;">Этот Power-Up должен быть установлен в Trello</p>';
+    } else {
+      generateReport();
+    }
   </script>
 </body>
 </html>
