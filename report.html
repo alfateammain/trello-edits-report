@@ -214,11 +214,13 @@
         }
 
         // Получаем участников доски
-        const members = await t.board('members');
+        const boardData = await t.board('members');
         const membersMap = {};
-        members.members.forEach(member => {
-          membersMap[member.id] = member;
-        });
+        if (boardData.members) {
+          boardData.members.forEach(member => {
+            membersMap[member.id] = member;
+          });
+        }
 
         // Собираем данные
         const reportData = [];
@@ -249,13 +251,17 @@
             if (pravkiValue > 0) {
               // Получаем участников карточки
               const cardMembers = card.idMembers || [];
+              const memberNames = cardMembers.map(id => {
+                const member = membersMap[id];
+                return member ? member.fullName : 'Неизвестно';
+              });
               
               reportData.push({
                 name: card.name,
                 pravki: pravkiValue,
                 url: card.shortUrl || card.url,
                 members: cardMembers,
-                memberNames: cardMembers.map(id => membersMap[id]?.fullName || 'Неизвестно')
+                memberNames: memberNames
               });
               totalPravki += pravkiValue;
             }
@@ -295,8 +301,9 @@
                 if (!grouped['Без исполнителя']) grouped['Без исполнителя'] = [];
                 grouped['Без исполнителя'].push(item);
               } else {
-                item.members.forEach((memberId, idx) => {
-                  const memberName = item.memberNames[idx];
+                item.members.forEach((memberId) => {
+                  const member = membersMap[memberId];
+                  const memberName = member ? member.fullName : 'Неизвестно';
                   if (!grouped[memberName]) grouped[memberName] = [];
                   grouped[memberName].push(item);
                 });
