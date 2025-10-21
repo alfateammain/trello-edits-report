@@ -192,8 +192,8 @@
         const dateTo = document.getElementById('dateTo').value ? new Date(document.getElementById('dateTo').value + 'T23:59:59') : null;
         const groupBy = document.getElementById('groupBy').value;
 
-        // Получаем все карточки С УЧАСТНИКАМИ
-        const allCards = await t.cards('id', 'name', 'shortUrl', 'url', 'dateLastActivity', 'customFieldItems', 'idMembers', 'members');
+        // Получаем все карточки
+        const allCards = await t.cards('id', 'name', 'url', 'dateLastActivity', 'customFieldItems', 'members');
         
         // Получаем кастомные поля доски
         const board = await t.board('all');
@@ -255,22 +255,33 @@
 
             if (pravkiValue > 0) {
               // Получаем участников карточки
-              const cardMembers = card.idMembers || [];
-              console.log('Карточка:', card.name, 'ID участников:', cardMembers);
+              const cardMembers = card.idMembers || card.members || [];
+              console.log('Карточка:', card.name, 'ID участников:', card.idMembers, 'Members:', card.members);
               
-              const memberNames = cardMembers.map(id => {
-                const member = membersMap[id];
-                console.log('  - Участник ID:', id, 'Найден:', member);
-                return member ? member.fullName : 'Неизвестно';
-              });
+              let memberIds = [];
+              let memberNames = [];
+              
+              // Если есть idMembers - используем их
+              if (card.idMembers && card.idMembers.length > 0) {
+                memberIds = card.idMembers;
+                memberNames = memberIds.map(id => {
+                  const member = membersMap[id];
+                  return member ? member.fullName : 'Неизвестно';
+                });
+              }
+              // Если есть members объект - используем его
+              else if (card.members && card.members.length > 0) {
+                memberIds = card.members.map(m => m.id);
+                memberNames = card.members.map(m => m.fullName || m.username || 'Неизвестно');
+              }
               
               console.log('  Имена участников:', memberNames);
               
               reportData.push({
                 name: card.name,
                 pravki: Number(pravkiValue),
-                url: card.shortUrl || card.url,
-                members: cardMembers,
+                url: card.url,
+                members: memberIds,
                 memberNames: memberNames
               });
               totalPravki += Number(pravkiValue);
